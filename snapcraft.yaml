@@ -1,0 +1,29 @@
+name: content-demo-microk8s
+version: 'latest'
+summary: Snap showing how to use the configuration launcher in MicroK8s.
+description: |
+  Snap a demo configuration yaml file that MicroK8s can apply.
+build-base: core20
+base: bare
+
+grade: stable
+confinement: strict
+
+slots:
+  configuration:
+    interface: content
+    content: configuration
+    source:
+      read:
+        - $SNAP/configuration
+
+parts:
+  configuration:
+    plugin: dump
+    source: .
+    override-build: |
+        snapcraftctl build
+        mkdir -p $SNAPCRAFT_PART_INSTALL/configuration/
+        mv $SNAPCRAFT_PART_INSTALL/valid-launcher.yaml $SNAPCRAFT_PART_INSTALL/configuration/config.yaml
+    stage:
+      - configuration/*
