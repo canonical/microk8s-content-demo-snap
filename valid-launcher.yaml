@@ -1,0 +1,5 @@
+addons:
+  - name: dns
+    status: enable
+  - name: ingress
+    status: disable
