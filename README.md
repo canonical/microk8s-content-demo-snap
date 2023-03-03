@@ -1,8 +1,49 @@
 # microk8s-content-demo-snap
+
 Snap showing how to use the configuration launcher in MicroK8s.
 
-In this snap you will find a yaml manifest with the configuration expected by a strictly confined MicroK8s deployment.
-Through this configuration you can currently only enable and disable but more functionality will be added soon.
+## Develop and Build
+
+### Configuration
+
+Create a YAML file called `launcher/configuration/content.yaml` with the launch configuration you want to apply to the MicroK8s instance. In this example snap, we only enable a few addons.
+
+The configuration schema can be found in [Configuration](https://github.com/canonical/microk8s-cluster-agent/blob/main/pkg/k8sinit/schema.go#L43). Also see [full.yaml](https://github.com/canonical/microk8s-cluster-agent/blob/main/pkg/k8sinit/testdata/schema/full.yaml) for an example.
+
+```yaml
+# launcher/configuration/content.yaml
+---
+version: 0.1.0
+addons:
+  - name: dns
+  - name: rbac
+  - name: ingress
+```
+
+### Image Sideloading
+
+Create one or more `tar` archives containing OCI images that will be sideloaded into the cluster and add them under `launcher/sideload/<image>.tar`. The filename does not matter, but the file extension must be `.tar`.
+
+By default, this snap only contains the pause image (`registry.k8s.io/pause:3.7`) due to size considerations.
+
+```bash
+mkdir -p launcher/sideload
+cp pause.tar launcher/sideload/pause.tar
+```
+
+### Build snap
+
+Build the snap using snapcraft. This will produce a `content-demo-microk8s_<version>_<arch>.snap` file.
+
+```
+snapcraft
+```
+
+Optionally, upload and release the snap to the Snap Store:
+
+```
+snapcraft upload ./content-demo-microk8s_*.snap --release latest/edge
+```
 
 ## Usage
 Install microk8s from a strict channel:
@@ -15,20 +56,19 @@ Install the snap carrying the configuration. In this case the snap is `content-d
 
 ```
 sudo snap install content-demo-microk8s --channel=latest/edge
-``` 
+```
 
 Connect the configuration interface:
 
 ```
-sudo snap connect microk8s:configuration content-demo-microk8s:configuration
+sudo snap connect content-demo-microk8s:configuration microk8s
 ```
 
 After the configuration is applied, disconnect the interface:
 
 ```
-sudo snap disconnect microk8s:configuration  content-demo-microk8s:configuration
+sudo snap disconnect microk8s:configuration content-demo-microk8s:configuration
 ```
-
 
 ## Implementation
 
@@ -42,23 +82,11 @@ slots:
     content: configuration
     source:
       read:
-        - $SNAP/configuration
+        - $SNAP/launcher
 ```
 
 On the other end of the content interface (the plug) a MicroK8s instance will search for the configuration yaml file and apply
 the requests setup.
-
-Both sides of the contect interface need to agree on a configuration with the same schema. The demo configuration included
-in the current version of the snap only handles the enablement of addons:
-
-```
-addons:
-  - name: dns
-    status: enable
-  - name: ingress
-    status: disable
-```
-
 
 ## Links
 

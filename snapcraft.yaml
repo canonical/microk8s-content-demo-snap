@@ -3,8 +3,7 @@ version: 'latest'
 summary: Snap showing how to use the configuration launcher in MicroK8s.
 description: |
   Snap a demo configuration yaml file that MicroK8s can apply.
-build-base: core20
-base: bare
+base: core20
 
 grade: stable
 confinement: strict
@@ -20,6 +19,4 @@ slots:
 parts:
   configuration:
     plugin: dump
-    source: .
-    stage:
-      - launcher/*
+    source: launcher
