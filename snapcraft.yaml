@@ -19,4 +19,6 @@ slots:
 parts:
   configuration:
     plugin: dump
-    source: launcher
+    source: .
+    stage:
+      - launcher/*
