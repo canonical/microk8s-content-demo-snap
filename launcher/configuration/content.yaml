@@ -1,5 +1,6 @@
+---
+version: 0.1.0
 addons:
   - name: dns
-    status: enable
+  - name: rbac
   - name: ingress
-    status: disable

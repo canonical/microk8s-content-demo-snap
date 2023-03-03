@@ -15,15 +15,11 @@ slots:
     content: configuration
     source:
       read:
-        - $SNAP/configuration
+        - $SNAP/launcher
 
 parts:
   configuration:
     plugin: dump
     source: .
-    override-build: |
-        snapcraftctl build
-        mkdir -p $SNAPCRAFT_PART_INSTALL/configuration/
-        mv $SNAPCRAFT_PART_INSTALL/valid-launcher.yaml $SNAPCRAFT_PART_INSTALL/configuration/config.yaml
     stage:
-      - configuration/*
+      - launcher/*
