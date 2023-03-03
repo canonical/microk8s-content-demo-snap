@@ -27,6 +27,10 @@ Create one or more `tar` archives containing OCI images that will be sideloaded 
 By default, this snap only contains the pause image (`registry.k8s.io/pause:3.7`) due to size considerations.
 
 ```bash
+# retrieve pause.tar from a running instance:
+microk8s ctr images export-local pause.tar registry.k8s.io/pause:3.7
+
+# copy to launcher/sideload/
 mkdir -p launcher/sideload
 cp pause.tar launcher/sideload/pause.tar
 ```
