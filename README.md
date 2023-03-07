@@ -65,7 +65,7 @@ sudo snap install content-demo-microk8s --channel=latest/edge
 Connect the configuration interface:
 
 ```
-sudo snap connect content-demo-microk8s:configuration microk8s
+sudo snap connect microk8s:configuration content-demo-microk8s
 ```
 
 After the configuration is applied, disconnect the interface:
