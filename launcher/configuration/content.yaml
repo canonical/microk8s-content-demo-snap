@@ -19,6 +19,6 @@ extraKubeControllerManagerArgs:
 version: 0.1.0
 addonRepositories:
   - name: content
-    url: "/snap/microk8s/current/etc/launcher/addons"
+    url: "/snap/microk8s/current/content-interface/launcher/addons"
 addons:
   - name: start-flannel
