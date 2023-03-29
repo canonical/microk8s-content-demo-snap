@@ -5,6 +5,13 @@
 touch $SNAP_DATA/var/lock/cni-loaded
 rm $SNAP_DATA/args/cni-network/*
 
+$SNAP/microk8s-kubectl.wrapper delete -n kube-system deploy/calico-kube-controllers || true
+$SNAP/microk8s-kubectl.wrapper delete -n kube-system ds/calico-node || true
+
+if [ -z "$($SNAP/microk8s-kubectl.wrapper get node -o jsonpath='{range .items[*]}{.spec.podCIDR}{end}')" ]; then
+  restart_service kubelite
+fi
+
 set_service_expected_to_start flanneld
 restart_service containerd
 restart_service flanneld
