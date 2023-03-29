@@ -1,6 +1,24 @@
 ---
 version: 0.1.0
+extraFlanneldArgs:
+  --kube-subnet-mgr: 'true'
+  --kubeconfig-file: $SNAP_DATA/credentials/kubelet.config
+  --net-config-path: $SNAP_DATA/args/flannel-network-mgr-config
+  --ip-masq: 'true'
+  --etcd-endpoints: null
+  --etcd-cafile: null
+  --etcd-certfile: null
+  --etcd-keyfile: null
+  --subnet-file: $SNAP_COMMON/run/flannel/subnet.env
+extraFlanneldEnv:
+  NODE_NAME: $(hostname)
+extraKubeControllerManagerArgs:
+  --cluster-cidr: 10.1.0.0/16
+  --allocate-node-cidrs: true
+---
+version: 0.1.0
+addonRepositories:
+  - name: content
+    url: "/snap/microk8s/current/etc/launcher/addons"
 addons:
-  - name: dns
-  - name: rbac
-  - name: ingress
+  - name: start-flannel

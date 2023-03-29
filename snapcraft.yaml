@@ -18,7 +18,9 @@ slots:
 
 parts:
   configuration:
-    plugin: dump
+    plugin: nil
     source: .
-    stage:
-      - launcher/*
+    override-build: |
+      rm $SNAPCRAFT_PART_INSTALL/launcher -rf
+      cp -rv launcher $SNAPCRAFT_PART_INSTALL/launcher
+      (cd $SNAPCRAFT_PART_INSTALL/launcher/addons && git init && git add . && git commit -m 'test')

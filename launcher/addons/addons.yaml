@@ -1,0 +1,12 @@
+microk8s-addons:
+  description: "Custom MicroK8s addons"
+  addons:
+    - name: "start-flannel"
+      description: ""
+      version: "0.0.1"
+      check_status: ""
+      supported_architectures:
+        - amd64
+        - arm64
+        - s390x
+        - ppc64le
