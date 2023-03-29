@@ -8,3 +8,5 @@ rm $SNAP_DATA/args/cni-network/*
 set_service_expected_to_start flanneld
 restart_service containerd
 restart_service flanneld
+
+touch $SNAP_DATA/started_flannel
