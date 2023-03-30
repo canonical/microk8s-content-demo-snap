@@ -1,4 +1,4 @@
-name: microk8s-core-addons-offline
+name: content-microk8s-core-addons-offline
 version: 'latest'
 summary: MicroK8s Core addons offline
 description: |
@@ -23,4 +23,12 @@ parts:
     override-build: |
       rm $SNAPCRAFT_PART_INSTALL/launcher -rf
       cp -rv launcher $SNAPCRAFT_PART_INSTALL/launcher
-      (cd $SNAPCRAFT_PART_INSTALL/launcher/core-addons && git init && git add . && git commit -m 'test')
+
+      (
+        cd $SNAPCRAFT_PART_INSTALL/launcher/core-addons
+        git init
+        git config user.email microk8s@canonical.com
+        git config user.name 'MicroK8s'
+        git add .
+        git commit -m 'test'
+      )

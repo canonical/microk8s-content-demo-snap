@@ -71,7 +71,6 @@ def main(
         "install",
         "gpu-operator",
         DIR / "gpu-operator",
-        f"--version={version}",
         "--create-namespace",
         "--namespace=gpu-operator-resources",
         "-f",
