@@ -1,0 +1,20 @@
+---
+# Source: mayastor-aio/charts/mayastor/templates/mayastor/agents/core/agent-core-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mayastor-agent-core
+  labels:
+    app: agent-core
+    openebs.io/release: mayastor
+    openebs.io/version: 2.0.0-microk8s-rc.4
+spec:
+  clusterIP: None
+  selector:
+    app: agent-core
+    openebs.io/release: mayastor
+  ports:
+    - name: grpc
+      port: 50051
+    - name: ha-cluster
+      port: 50052

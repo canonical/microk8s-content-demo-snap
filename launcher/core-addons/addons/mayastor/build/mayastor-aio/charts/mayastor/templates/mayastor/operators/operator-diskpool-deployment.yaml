@@ -1,0 +1,65 @@
+---
+# Source: mayastor-aio/charts/mayastor/templates/mayastor/operators/operator-diskpool-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mayastor-operator-diskpool
+  labels:
+    app: operator-diskpool
+    openebs.io/release: mayastor
+    openebs.io/version: 2.0.0-microk8s-rc.4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: operator-diskpool
+      openebs.io/release: mayastor
+  template:
+    metadata:
+      labels:
+        app: operator-diskpool
+        openebs.io/release: mayastor
+        openebs.io/version: 2.0.0-microk8s-rc.4
+        openebs.io/logging: "true"
+    spec:
+      serviceAccount: mayastor-service-account
+      imagePullSecrets:
+      initContainers:
+        - command:
+          - sh
+          - -c
+          - trap "exit 1" TERM; until nc -vzw 5 mayastor-agent-core 50051; do date;
+            echo "Waiting for agent-core-grpc services..."; sleep 1; done;
+          image: 'busybox:1.28.4'
+          name: agent-core-grpc-probe
+        - command:
+          - sh
+          - -c
+          - trap "exit 1" TERM; until nc -vzw 5 etcd-client 2379; do date; echo "Waiting for etcd..."; sleep 1; done;
+          image: 'busybox:1.28.4'
+          name: etcd-probe
+      containers:
+        - name: operator-diskpool
+          resources:
+            limits:
+              cpu: "100m"
+              memory: "32Mi"
+            requests:
+              cpu: "50m"
+              memory: "16Mi"
+          image: "docker.io/openebs/mayastor-operator-diskpool:release-2.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-e http://mayastor-api-rest:8081"
+            - "-nmayastor"
+            - "--request-timeout=5s"
+            - "--interval=30s"
+            - "--disable-device-validation"
+            - "-r=100"
+          env:
+            - name: RUST_LOG
+              value: info
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name

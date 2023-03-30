@@ -1,0 +1,7 @@
+---
+# Source: mayastor-aio/charts/etcd-operator/templates/etcd-operator-sa.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: mayastor
+  name: etcd-operator-mayastor-sa

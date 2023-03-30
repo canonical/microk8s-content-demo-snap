@@ -1,0 +1,20 @@
+---
+# Source: mayastor-aio/charts/mayastor/templates/mayastor/metrics/metrics-exporter-pool-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mayastor-metrics-exporter-pool
+  labels:
+    app: metrics-exporter-pool
+    openebs.io/release: mayastor
+    openebs.io/version: 2.0.0-microk8s-rc.4
+spec:
+  clusterIP: None
+  ports:
+    - name: metrics
+      port: 9502
+      targetPort: 9502
+      protocol: TCP
+  selector:
+    app: io-engine
+    openebs.io/release: mayastor

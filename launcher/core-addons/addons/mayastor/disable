@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import time
+
+import click
+
+DIR = pathlib.Path(__file__).parent.absolute()
+KUBECTL = os.path.expandvars("$SNAP/microk8s-kubectl.wrapper")
+HELM = os.path.expandvars("$SNAP/microk8s-helm3.wrapper")
+MAYASTOR_DATA = pathlib.Path(os.path.expandvars("$SNAP_COMMON/mayastor/data"))
+
+
+def get_diskpools():
+    """
+    Return list of mayastorpools in the MicroK8s cluster.
+    """
+
+    # NOTE(neoaggelos): https://github.com/canonical/microk8s/issues/3060
+    # we make a few retries, since the kubectl call may sometimes fail
+    # even if the mayastorpool CRD is installed correctly.
+    for attempt in range(5):
+        try:
+            pools = subprocess.check_output(
+                [KUBECTL, "get", "diskpool", "-n", "mayastor", "-o", "json"],
+            )
+
+            return json.loads(pools).get("items") or []
+        except subprocess.CalledProcessError:
+            click.echo(
+                "Failed to retrieve pools (attempt {})".format(attempt),
+                err=True,
+            )
+            time.sleep(1)
+        except json.JSONDecodeError as e:
+            click.echo("Failed to parse existing pools: {}".format(e), err=True)
+            sys.exit(1)
+
+    click.echo("Giving up after {} attempts".format(attempt), err=True)
+    return []
+
+
+@click.command()
+@click.option("--remove-storage/--preserve-storage", is_flag=True, default=True)
+@click.option("--force/--no-force", is_flag=True, default=True)
+def main(remove_storage: bool, force: bool):
+    pools = get_diskpools()
+
+    used = [p for p in pools if p.get("status", {}).get("used", 0) > 0]
+    if not force and used:
+        click.echo("The following pools are in use, please run with --force", err=True)
+        for p in used:
+            click.echo("{} ({})".format(p["metadata"]["name"], p["status"]), err=True)
+        sys.exit(1)
+
+    if remove_storage:
+        for pool in pools:
+            pool_name = pool["metadata"]["name"]
+            subprocess.run([DIR / "pools.py", "remove", pool_name, "--force", "--purge"])
+
+    subprocess.run([HELM, "uninstall", "mayastor", "-n", "mayastor"])
+
+
+if __name__ == "__main__":
+    main()

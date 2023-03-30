@@ -1,0 +1,167 @@
+---
+# Source: mayastor-aio/charts/mayastor/templates/mayastor/io/io-engine-daemonset.yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: mayastor-io-engine
+  labels:
+    app: io-engine
+    openebs.io/release: mayastor
+    openebs.io/version: 2.0.0-microk8s-rc.4
+spec:
+  selector:
+    matchLabels:
+      app: io-engine
+      openebs.io/release: mayastor
+  updateStrategy:
+    type: OnDelete
+  minReadySeconds: 10
+  template:
+    metadata:
+      labels:
+        app: io-engine
+        openebs.io/release: mayastor
+        openebs.io/version: 2.0.0-microk8s-rc.4
+        openebs.io/logging: "true"
+    spec:
+      serviceAccountName: 
+      imagePullSecrets:
+      hostNetwork: true
+      # To resolve services in the namespace
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        null
+      affinity: 
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: microk8s.io/mayastor
+                operator: NotIn
+                values:
+                - disable
+      initContainers:
+        - command:
+          - sh
+          - -c
+          - trap "exit 1" TERM; until nc -vzw 5 mayastor-agent-core 50051; do date;
+            echo "Waiting for agent-core-grpc services..."; sleep 1; done;
+          image: 'busybox:1.28.4'
+          name: agent-core-grpc-probe
+        - command:
+          - sh
+          - -c
+          - trap "exit 1" TERM; until nc -vzw 5 etcd-client 2379; do date; echo "Waiting for etcd..."; sleep 1; done;
+          image: 'busybox:1.28.4'
+          name: etcd-probe
+      containers:
+      - name: metrics-exporter-pool
+        image: "docker.io/openebs/mayastor-metrics-exporter-pool:release-2.0"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        args:
+        - "-p5m"
+        - "--api-versions=v1"
+        command:
+        - metrics-exporter-pool
+        ports:
+          - containerPort: 9502
+            protocol: TCP
+            name: metrics
+      - name: io-engine
+        image: "docker.io/openebs/mayastor-io-engine:release-2.0"
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: RUST_LOG
+          value: info,io_engine=info
+        - name: NVME_QPAIR_CONNECT_ASYNC
+          value: "true"
+        - name: NVMF_TCP_MAX_QUEUE_DEPTH
+          value: "32"
+        - name: MY_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: NEXUS_NVMF_ANA_ENABLE
+          value: "1"
+        - name: NEXUS_NVMF_RESV_ENABLE
+          value: "1"
+        args:
+        # The -l argument accepts cpu-list. Indexing starts at zero.
+        # For example -l 1,2,10-20 means use core 1, 2, 10 to 20.
+        # Note: Ensure that the CPU resources are updated accordingly.
+        #       If you use 2 CPUs, the CPU: field should also read 2.
+        - "-g$(MY_POD_IP)"
+        - "-N$(MY_NODE_NAME)"
+        - "-Rhttps://mayastor-agent-core:50051"
+        - "-y/var/local/io-engine/config.yaml"
+        - "-l1,2"
+        - "-p=etcd-client:2379"
+        - "--ptpl-dir=/var/local/io-engine/ptpl/"
+        - "--api-versions=v1"
+        command:
+        - io-engine
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: device
+          mountPath: /dev
+        - name: udev
+          mountPath: /run/udev
+        - name: dshm
+          mountPath: /dev/shm
+        - name: configlocation
+          mountPath: /var/local/io-engine/
+        - name: hugepage
+          mountPath: /dev/hugepages
+        - mountPath: /data
+          name: microk8sdata
+        resources:
+          limits:
+            cpu: "2"
+            memory: "1Gi"
+            hugepages-2Mi: "2Gi"
+          requests:
+            cpu: "2"
+            memory: "1Gi"
+            hugepages-2Mi: "2Gi"
+        ports:
+        - containerPort: 10124
+          protocol: TCP
+          name: io-engine
+      volumes:
+      - name: device
+        hostPath:
+          path: /dev
+          type: Directory
+      - name: udev
+        hostPath:
+          path: /run/udev
+          type: Directory
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: "1Gi"
+      - name: hugepage
+        emptyDir:
+          medium: HugePages
+      - name: configlocation
+        hostPath:
+          path: "/var/snap/microk8s/common/mayastor/config"
+          type: DirectoryOrCreate
+      - hostPath:
+          path: /var/snap/microk8s/common/mayastor/data
+          type: DirectoryOrCreate
+        name: microk8sdata

@@ -1,9 +1,9 @@
-name: content-demo-microk8s
+name: microk8s-core-addons-offline
 version: 'latest'
-summary: Snap showing how to use the configuration launcher in MicroK8s.
+summary: MicroK8s Core addons offline
 description: |
   Snap a demo configuration yaml file that MicroK8s can apply.
-base: core20
+base: core18
 
 grade: stable
 confinement: strict
@@ -23,4 +23,4 @@ parts:
     override-build: |
       rm $SNAPCRAFT_PART_INSTALL/launcher -rf
       cp -rv launcher $SNAPCRAFT_PART_INSTALL/launcher
-      (cd $SNAPCRAFT_PART_INSTALL/launcher/addons && git init && git add . && git commit -m 'test')
+      (cd $SNAPCRAFT_PART_INSTALL/launcher/core-addons && git init && git add . && git commit -m 'test')

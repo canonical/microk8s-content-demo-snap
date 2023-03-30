@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+
+import os
+import pathlib
+import re
+import shutil
+import socket
+import subprocess
+import sys
+
+import click
+
+DIR = pathlib.Path(__file__).parent.absolute()
+
+MAYASTOR_DATA = pathlib.Path(os.path.expandvars("$SNAP_COMMON/mayastor/data"))
+PLUGINS_DIR = pathlib.Path(os.path.expandvars("$SNAP_COMMON/plugins"))
+
+KUBECTL = os.path.expandvars("$SNAP/microk8s-kubectl.wrapper")
+HELM = os.path.expandvars("$SNAP/microk8s-helm3.wrapper")
+MICROK8S_STATUS = os.path.expandvars("$SNAP/microk8s-status.wrapper")
+MICROK8S_ENABLE = os.path.expandvars("$SNAP/microk8s-enable.wrapper")
+
+
+def ensure_hugepages_enabled():
+    click.echo("Checking for HugePages (>= 1024)...")
+    enabled = False
+    try:
+        with open("/proc/meminfo") as fin:
+            match = re.findall(r"HugePages_Total:[\s\t]*(\d+)", fin.read())
+
+        nr_hugepages = int(match[0])
+        enabled = nr_hugepages >= 1024
+    except (OSError, IndexError, ValueError):
+        pass
+
+    if not enabled:
+        click.echo(
+            """
+HugePages are not available or enabled. Please make sure HugePages are enabled.
+
+To enable HugePages (mayastor requires at least 1024):
+
+    echo vm.nr_hugepages = 1024 | sudo tee -a /etc/sysctl.d/20-microk8s-hugepages.conf
+
+Please restart your system after enablement.
+""",
+            err=True,
+        )
+        sys.exit(1)
+
+    click.echo("Checking for HugePages (>= 1024)... OK")
+
+
+def ensure_kernel_required_modules():
+    click.echo("Checking for nvme_tcp module...")
+    output = subprocess.check_output(["lsmod"]).decode()
+    if "nvme_tcp" not in output:
+        click.echo(
+            """
+Kernel module 'nvme_tcp' is missing or not loaded. For Ubuntu, enable with:
+
+    sudo apt-get install linux-modules-extra-$(uname -r)
+    sudo modprobe nvme-tcp
+    echo 'nvme-tcp' | sudo tee -a /etc/modules-load.d/microk8s-mayastor.conf
+
+Note that the 'nvme_tcp' module is needed in all cluster nodes.
+""",
+            err=True,
+        )
+        sys.exit(1)
+
+    click.echo("Checking for nvme_tcp module... OK")
+
+
+def ensure_addon(addon_name: str):
+    click.echo("Checking for addon {}...".format(addon_name))
+    output = subprocess.check_output([MICROK8S_STATUS, "-a", addon_name]).decode()
+    if "enabled" not in output:
+        p = subprocess.run([MICROK8S_ENABLE, addon_name])
+        if p.returncode != 0:
+            click.echo("Failed to enable addon {}".format(addon_name), err=True)
+            sys.exit(1)
+
+    click.echo("Checking for addon {}... OK".format(addon_name))
+
+
+@click.command()
+@click.option("--skip-hugepages-check", is_flag=True, default=False)
+@click.option("--skip-kernel-check", is_flag=True, default=False)
+@click.option("--dns-addon", default="core/dns")
+@click.option("--helm-addon", default="core/helm3")
+@click.option("--default-pool-size", default="20G")
+@click.option("--create-storage-classes/--no-create-storage-classes", is_flag=True, default=True)
+def main(
+    skip_hugepages_check: bool,
+    skip_kernel_check: bool,
+    dns_addon: str,
+    helm_addon: str,
+    default_pool_size: str,
+    create_storage_classes: bool,
+):
+    if not skip_hugepages_check:
+        ensure_hugepages_enabled()
+
+    if not skip_kernel_check:
+        ensure_kernel_required_modules()
+
+    if dns_addon:
+        ensure_addon(dns_addon)
+    if helm_addon:
+        ensure_addon(helm_addon)
+
+    # Create mayastor namespace. Ignore failures (e.g. if namespace exists)
+    subprocess.run([KUBECTL, "create", "namespace", "mayastor"])
+
+    args = ["-f", DIR / "chart/values.yaml"]
+    if not create_storage_classes:
+        click.echo("Storage classes will not be created, please configure manually")
+        args.extend(["--set", "storageClass.create=false"])
+    if default_pool_size:
+        click.echo("Default image size set to {}".format(default_pool_size))
+        args.extend(["--set", "mayastor.imageSize={}".format(default_pool_size)])
+
+    # Fetch dependencies
+    subprocess.check_call([HELM, "dependency", "update"], cwd=DIR / "chart")
+
+    # If microk8s.img already exists, this is most likely from a previous installation
+    # Print a warning to the user.
+    microk8s_img = MAYASTOR_DATA / "microk8s.img"
+    if microk8s_img.exists():
+        click.echo(
+            f"""
+============================================================
+
+WARNING: {microk8s_img} already exists.
+To prevent data loss, no pool will be created by default. To fix this, you
+can do a clean install of the mayastor addon with:
+
+    microk8s disable mayastor --remove-storage
+    microk8s enable mayastor
+
+"""
+        )
+
+    # Install
+    subprocess.check_call([HELM, "install", "mayastor", "-n", "mayastor", DIR / "chart", *args])
+
+    click.echo(
+        f"""
+=============================================================
+
+Mayastor has been installed and will be available shortly.
+
+Mayastor will run for all nodes in your MicroK8s cluster by default. Use the
+'microk8s.io/mayastor=disable' label to disable any node. For example:
+
+    microk8s.kubectl label node {socket.gethostname()} microk8s.io/mayastor=disable
+
+"""
+    )
+
+    shutil.copy(DIR / "pools.py", PLUGINS_DIR / "mayastor-pools")
+
+
+if __name__ == "__main__":
+    main()

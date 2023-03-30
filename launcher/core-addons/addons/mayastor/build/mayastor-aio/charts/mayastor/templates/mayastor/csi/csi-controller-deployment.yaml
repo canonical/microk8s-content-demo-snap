@@ -1,0 +1,87 @@
+---
+# Source: mayastor-aio/charts/mayastor/templates/mayastor/csi/csi-controller-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mayastor-csi-controller
+  labels:
+    app: csi-controller
+    openebs.io/release: mayastor
+    openebs.io/version: 2.0.0-microk8s-rc.4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: csi-controller
+      openebs.io/release: mayastor
+  template:
+    metadata:
+      labels:
+        app: csi-controller
+        openebs.io/release: mayastor
+        openebs.io/version: 2.0.0-microk8s-rc.4
+        openebs.io/logging: "true"
+    spec:
+      hostNetwork: true
+      serviceAccount: mayastor-service-account
+      dnsPolicy: ClusterFirstWithHostNet
+      imagePullSecrets:
+      initContainers:
+        - command:
+          - sh
+          - -c
+          - trap "exit 1" TERM; until nc -vzw 5 mayastor-api-rest 8081; do date;
+            echo "Waiting for REST API endpoint to become available"; sleep 1; done;
+          image: 'busybox:1.28.4'
+          name: api-rest-probe
+      containers:
+        - name: csi-provisioner
+          image: "registry.k8s.io/sig-storage/csi-provisioner:v2.2.1"
+          args:
+            - "--v=2"
+            - "--csi-address=$(ADDRESS)"
+            - "--feature-gates=Topology=true"
+            - "--strict-topology=false"
+            - "--default-fstype=ext4"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: csi-attacher
+          image: "registry.k8s.io/sig-storage/csi-attacher:v3.2.1"
+          args:
+            - "--v=2"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: csi-controller
+          resources:
+            limits:
+              cpu: "32m"
+              memory: "128Mi"
+            requests:
+              cpu: "16m"
+              memory: "64Mi"
+          image: "docker.io/openebs/mayastor-csi-controller:release-2.0"
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--csi-socket=/var/lib/csi/sockets/pluginproxy/csi.sock"
+            - "--rest-endpoint=http://mayastor-api-rest:8081"
+            - "--node-selector=openebs.io/csi-node=mayastor"
+          env:
+            - name: RUST_LOG
+              value: info
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+      volumes:
+        - name: socket-dir
+          emptyDir:

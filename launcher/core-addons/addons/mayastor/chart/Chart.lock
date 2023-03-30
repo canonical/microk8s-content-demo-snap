@@ -1,0 +1,9 @@
+dependencies:
+- name: etcd-operator
+  repository: https://raw.githubusercontent.com/canonical/etcd-operator/master/chart
+  version: 0.0.1
+- name: mayastor
+  repository: https://github.com/canonical/mayastor-extensions/releases/download/v2.0.0-microk8s-1
+  version: 2.0.0-microk8s-1
+digest: sha256:9ace63e169a72219379e5d00cc08b00a7e00b6557954806484fd639b611a9740
+generated: "2023-03-10T21:20:12.875612019+02:00"

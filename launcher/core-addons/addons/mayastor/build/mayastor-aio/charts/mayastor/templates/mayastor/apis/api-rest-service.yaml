@@ -1,0 +1,24 @@
+---
+# Source: mayastor-aio/charts/mayastor/templates/mayastor/apis/api-rest-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mayastor-api-rest
+  labels:
+    app: api-rest
+    openebs.io/release: mayastor
+    openebs.io/version: 2.0.0-microk8s-rc.4
+spec:
+  type: ClusterIP
+  selector:
+    app: api-rest
+    openebs.io/release: mayastor
+  ports:
+    - port: 8080
+      name: https
+      targetPort: 8080
+      protocol: TCP
+    - port: 8081
+      name: http
+      targetPort: 8081
+      protocol: TCP

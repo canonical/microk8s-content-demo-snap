@@ -1,0 +1,7 @@
+---
+# Source: mayastor-aio/templates/mayastor-sa.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "mayastor-io-engine-sa"
+  namespace: mayastor

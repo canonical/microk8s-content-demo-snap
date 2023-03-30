@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+set -e
+
+echo "Helm comes pre-installed with MicroK8s"
+
+echo "Helm 3 is enabled"

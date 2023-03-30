@@ -1,0 +1,26 @@
+---
+# Source: mayastor-aio/charts/etcd-operator/templates/etcd-clusters.yaml
+apiVersion: etcd.database.canonical.com/v1beta3
+kind: EtcdCluster
+metadata:
+  name: "etcd"
+  namespace: mayastor
+spec: 
+  limitSizeToMaxReadyNodes: true
+  pod:
+    ClusterDomain: .cluster.local.
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: etcd_cluster
+              operator: In
+              values:
+              - etcd
+          topologyKey: kubernetes.io/hostname
+    busyboxImage: busybox:1.28.4
+    hostPathVolume: /var/snap/microk8s/common/mayastor/etcd/$NAME
+    restartPolicy: Always
+  size: 3
+  version: 3.5.4
